@@ -131,15 +131,13 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Install dependencies and build with coverage instrumentation
+      - name: Install dependencies and build
         run: |
           uv sync
-          cargo llvm-cov clean --workspace
-        env:
-          RUSTFLAGS: '-C instrument-coverage'
+          rm -f *.profraw  # Clean old coverage data
 
       - name: Build with maturin (instrumented)
-        run: uv run maturin develop
+        run: uv tool run maturin develop
         env:
           RUSTFLAGS: '-C instrument-coverage'
           LLVM_PROFILE_FILE: 'coverage-%p-%m.profraw'
@@ -152,7 +150,29 @@ jobs:
 
       - name: Generate Rust coverage report
         run: |
-          cargo llvm-cov report --lcov --output-path rust-coverage.lcov
+          # Check if profraw files exist
+          ls -la *.profraw || echo "Warning: No profraw files found in workspace"
+          # Merge profraw files
+          llvm-profdata merge -sparse *.profraw -o coverage.profdata
+          # Find the compiled Python extension
+          EXTENSION=$(find target/debug -name "_pgoutput_decoder*.so" -o -name "_pgoutput_decoder*.dylib" | head -1)
+          echo "Using extension: $EXTENSION"
+          if [ -z "$EXTENSION" ]; then
+            echo "Error: Could not find Python extension"
+            exit 1
+          fi
+          # Generate lcov report
+          llvm-cov export --format=lcov \
+            --instr-profile=coverage.profdata \
+            --ignore-filename-regex='/.cargo/' \
+            --ignore-filename-regex='/rustc/' \
+            "$EXTENSION" > rust-coverage.lcov
+          # Show summary
+          llvm-cov report \
+            --instr-profile=coverage.profdata \
+            --ignore-filename-regex='/.cargo/' \
+            --ignore-filename-regex='/rustc/' \
+            "$EXTENSION"
 
       - name: Upload Python coverage to Codecov
         uses: codecov/codecov-action@v5
