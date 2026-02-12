@@ -152,8 +152,14 @@ jobs:
         run: |
           # Check if profraw files exist
           ls -la *.profraw || echo "Warning: No profraw files found in workspace"
+          # Find llvm tools from rustc sysroot
+          SYSROOT=$(rustc --print sysroot)
+          LLVM_PROFDATA=$(find "$SYSROOT" -name llvm-profdata | head -1)
+          LLVM_COV=$(find "$SYSROOT" -name llvm-cov | head -1)
+          echo "Using llvm-profdata: $LLVM_PROFDATA"
+          echo "Using llvm-cov: $LLVM_COV"
           # Merge profraw files
-          llvm-profdata merge -sparse *.profraw -o coverage.profdata
+          "$LLVM_PROFDATA" merge -sparse *.profraw -o coverage.profdata
           # Find the compiled Python extension
           EXTENSION=$(find target/debug -name "_pgoutput_decoder*.so" -o -name "_pgoutput_decoder*.dylib" | head -1)
           echo "Using extension: $EXTENSION"
@@ -162,13 +168,13 @@ jobs:
             exit 1
           fi
           # Generate lcov report
-          llvm-cov export --format=lcov \
+          "$LLVM_COV" export --format=lcov \
             --instr-profile=coverage.profdata \
             --ignore-filename-regex='/.cargo/' \
             --ignore-filename-regex='/rustc/' \
             "$EXTENSION" > rust-coverage.lcov
           # Show summary
-          llvm-cov report \
+          "$LLVM_COV" report \
             --instr-profile=coverage.profdata \
             --ignore-filename-regex='/.cargo/' \
             --ignore-filename-regex='/rustc/' \
