@@ -9,6 +9,12 @@ wheels/
 # Virtual environments
 .venv
 
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+.pytest_cache/
+
 # Rust-generated files
 target/
 Cargo.lock

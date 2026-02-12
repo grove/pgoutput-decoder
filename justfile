@@ -46,6 +46,17 @@ test-python:
 # Run all tests
 test: test-rust test-python
 
+# Run tests with coverage report
+coverage:
+    uv run pytest --cov=pgoutput_decoder --cov-report=term --cov-report=html
+    @echo ""
+    @echo "📊 Coverage report generated in htmlcov/index.html"
+    @echo "Run 'just coverage-view' to open in browser"
+
+# Open coverage report in browser
+coverage-view:
+    open htmlcov/index.html
+
 # Build Rust extension in development mode
 dev:
     uv run maturin develop
@@ -61,7 +72,7 @@ clean:
 
 # Setup development environment
 setup:
-    uv sync
+    uv sync --all-extras
     uv run maturin develop
 
 # Run before committing (full check)
