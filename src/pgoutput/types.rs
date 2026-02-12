@@ -3,39 +3,35 @@ use pyo3::types::{PyDict, PyList};
 use std::str;
 
 /// Convert PostgreSQL binary/text data to Python objects based on type OID
-pub fn convert_pg_value(
-    py: Python,
-    data: Option<&[u8]>,
-    type_id: u32,
-) -> PyResult<PyObject> {
+pub fn convert_pg_value(py: Python, data: Option<&[u8]>, type_id: u32) -> PyResult<PyObject> {
     match data {
         None => Ok(py.None()),
         Some(bytes) => {
             // Convert based on PostgreSQL type OID
             // https://github.com/postgres/postgres/blob/master/src/include/catalog/pg_type.dat
             match type_id {
-                16 => convert_bool(py, bytes),      // bool
-                20 => convert_int8(py, bytes),      // int8
-                21 => convert_int2(py, bytes),      // int2
-                23 => convert_int4(py, bytes),      // int4
-                25 => convert_text(py, bytes),      // text
-                700 => convert_float4(py, bytes),   // float4
-                701 => convert_float8(py, bytes),   // float8
-                1042 => convert_text(py, bytes),    // char
-                1043 => convert_text(py, bytes),    // varchar
-                1082 => convert_date(py, bytes),    // date
-                1083 => convert_time(py, bytes),    // time
-                1114 => convert_timestamp(py, bytes), // timestamp
+                16 => convert_bool(py, bytes),          // bool
+                20 => convert_int8(py, bytes),          // int8
+                21 => convert_int2(py, bytes),          // int2
+                23 => convert_int4(py, bytes),          // int4
+                25 => convert_text(py, bytes),          // text
+                700 => convert_float4(py, bytes),       // float4
+                701 => convert_float8(py, bytes),       // float8
+                1042 => convert_text(py, bytes),        // char
+                1043 => convert_text(py, bytes),        // varchar
+                1082 => convert_date(py, bytes),        // date
+                1083 => convert_time(py, bytes),        // time
+                1114 => convert_timestamp(py, bytes),   // timestamp
                 1184 => convert_timestamptz(py, bytes), // timestamptz
-                1700 => convert_numeric(py, bytes), // numeric
-                2950 => convert_uuid(py, bytes),    // uuid
-                114 => convert_json(py, bytes),     // json
-                3802 => convert_json(py, bytes),    // jsonb
-                17 => convert_bytea(py, bytes),     // bytea
-                
+                1700 => convert_numeric(py, bytes),     // numeric
+                2950 => convert_uuid(py, bytes),        // uuid
+                114 => convert_json(py, bytes),         // json
+                3802 => convert_json(py, bytes),        // jsonb
+                17 => convert_bytea(py, bytes),         // bytea
+
                 // Array types (OID + 1000 typically)
                 1000..=1999 => convert_array(py, bytes, type_id),
-                
+
                 // Default: treat as text
                 _ => convert_text(py, bytes),
             }
@@ -140,15 +136,15 @@ fn convert_bytea(py: Python, data: &[u8]) -> PyResult<PyObject> {
 fn convert_array(py: Python, data: &[u8], _type_id: u32) -> PyResult<PyObject> {
     // PostgreSQL array format: {elem1,elem2,elem3}
     let s = str::from_utf8(data).unwrap_or("{}");
-    
+
     if s.starts_with('{') && s.ends_with('}') {
-        let inner = &s[1..s.len()-1];
+        let inner = &s[1..s.len() - 1];
         let elements: Vec<&str> = if inner.is_empty() {
             vec![]
         } else {
             inner.split(',').collect()
         };
-        
+
         let py_list = PyList::empty(py);
         for elem in elements {
             let trimmed = elem.trim();
@@ -158,7 +154,7 @@ fn convert_array(py: Python, data: &[u8], _type_id: u32) -> PyResult<PyObject> {
             } else {
                 // Remove quotes if present
                 let unquoted = if trimmed.starts_with('"') && trimmed.ends_with('"') {
-                    &trimmed[1..trimmed.len()-1]
+                    &trimmed[1..trimmed.len() - 1]
                 } else {
                     trimmed
                 };

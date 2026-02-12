@@ -1,7 +1,7 @@
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
 use std::time::Duration;
 use tokio::time::sleep;
-use pyo3::prelude::*;
-use pyo3::exceptions::PyRuntimeError;
 
 /// Build a PostgreSQL connection string from parameters
 pub fn build_connection_string(
@@ -41,15 +41,15 @@ impl ExponentialBackoff {
             attempts: 0,
         }
     }
-    
+
     pub async fn wait(&mut self) {
         sleep(self.current_delay).await;
         self.attempts += 1;
-        
+
         let next_delay = self.current_delay.as_millis() as f64 * self.multiplier;
         self.current_delay = Duration::from_millis(next_delay as u64).min(self.max_delay);
     }
-    
+
     pub fn reset(&mut self) {
         self.current_delay = Duration::from_millis(100);
         self.attempts = 0;

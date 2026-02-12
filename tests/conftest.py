@@ -24,12 +24,9 @@ def postgres_container():
     )
     # Configure for logical replication before starting
     postgres.with_command(
-        "postgres "
-        "-c wal_level=logical "
-        "-c max_replication_slots=4 "
-        "-c max_wal_senders=4"
+        "postgres -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4"
     )
-    
+
     with postgres:
         yield postgres
 
@@ -38,7 +35,7 @@ def postgres_container():
 async def postgres_with_ecommerce_schema(postgres_container):
     """PostgreSQL container with e-commerce schema and replication configured."""
     import asyncpg
-    
+
     # Connect and set up replication
     conn = await asyncpg.connect(
         host=postgres_container.get_container_host_ip(),
@@ -47,7 +44,7 @@ async def postgres_with_ecommerce_schema(postgres_container):
         password="test",
         database="testdb",
     )
-    
+
     try:
         # Create customers table
         await conn.execute("""
@@ -58,7 +55,7 @@ async def postgres_with_ecommerce_schema(postgres_container):
                 _deleted BOOLEAN DEFAULT FALSE
             )
         """)
-        
+
         # Create orders table
         await conn.execute("""
             CREATE TABLE orders (
@@ -69,7 +66,7 @@ async def postgres_with_ecommerce_schema(postgres_container):
                 FOREIGN KEY (cust_id) REFERENCES customers(_id)
             )
         """)
-        
+
         # Create products table
         await conn.execute("""
             CREATE TABLE products (
@@ -80,7 +77,7 @@ async def postgres_with_ecommerce_schema(postgres_container):
                 _deleted BOOLEAN DEFAULT FALSE
             )
         """)
-        
+
         # Create order_lines table
         await conn.execute("""
             CREATE TABLE order_lines (
@@ -94,30 +91,28 @@ async def postgres_with_ecommerce_schema(postgres_container):
                 FOREIGN KEY (product_id) REFERENCES products(_id)
             )
         """)
-        
+
         # Set replica identity to FULL for all tables to capture old values
         await conn.execute("ALTER TABLE customers REPLICA IDENTITY FULL")
         await conn.execute("ALTER TABLE orders REPLICA IDENTITY FULL")
         await conn.execute("ALTER TABLE products REPLICA IDENTITY FULL")
         await conn.execute("ALTER TABLE order_lines REPLICA IDENTITY FULL")
-        
+
         # Create publication for all tables
         await conn.execute("DROP PUBLICATION IF EXISTS ecommerce_pub CASCADE")
         await conn.execute("CREATE PUBLICATION ecommerce_pub FOR ALL TABLES")
-        
+
         # Create replication slot
         try:
-            await conn.execute(
-                "SELECT pg_drop_replication_slot('ecommerce_slot')"
-            )
+            await conn.execute("SELECT pg_drop_replication_slot('ecommerce_slot')")
         except Exception:
             pass  # Slot doesn't exist, that's fine
-        
+
         result = await conn.fetchrow(
             "SELECT lsn::text FROM pg_create_logical_replication_slot('ecommerce_slot', 'pgoutput')"
         )
-        start_lsn = result['lsn'] if result and result['lsn'] else '0/0'
-        
+        start_lsn = result["lsn"] if result and result["lsn"] else "0/0"
+
         yield {
             "host": postgres_container.get_container_host_ip(),
             "port": postgres_container.get_exposed_port(5432),
@@ -127,6 +122,6 @@ async def postgres_with_ecommerce_schema(postgres_container):
             "connection": conn,
             "start_lsn": start_lsn,
         }
-        
+
     finally:
         await conn.close()

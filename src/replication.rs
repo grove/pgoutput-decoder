@@ -1,14 +1,16 @@
+use futures::StreamExt;
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyAny};
-use tokio_postgres::NoTls;
+use pyo3::types::{PyAny, PyDict};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use futures::StreamExt;
+use tokio_postgres::NoTls;
 
 use crate::pgoutput::{PgOutputDecoder, PgOutputMessage, ReplicationMessage};
-use crate::utils::{build_connection_string, ExponentialBackoff, to_py_err};
+use crate::utils::{build_connection_string, to_py_err, ExponentialBackoff};
 
-use pgwire_replication::{ReplicationClient, ReplicationConfig as PgReplicationConfig, ReplicationEvent, Lsn, TlsConfig};
+use pgwire_replication::{
+    Lsn, ReplicationClient, ReplicationConfig as PgReplicationConfig, ReplicationEvent, TlsConfig,
+};
 
 /// PostgreSQL logical replication reader
 #[pyclass]
@@ -64,7 +66,7 @@ impl LogicalReplicationReader {
             start_lsn,
             auto_acknowledge,
         };
-        
+
         let state = ReaderState {
             decoder: PgOutputDecoder::new(),
             client: None,
@@ -72,21 +74,21 @@ impl LogicalReplicationReader {
             current_lsn: None,
             pending_lsn: None,
         };
-        
+
         Self {
             config,
             state: Arc::new(Mutex::new(state)),
         }
     }
-    
+
     fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    
+
     fn __anext__<'a>(&'a self, py: Python<'a>) -> PyResult<Option<&'a PyAny>> {
         let state = self.state.clone();
         let config = self.config.clone();
-        
+
         Ok(Some(pyo3_asyncio::tokio::future_into_py(py, async move {
             // Initialize connection if needed
             {
@@ -98,9 +100,9 @@ impl LogicalReplicationReader {
                     } else {
                         Lsn::ZERO
                     };
-                    
+
                     let repl_config = PgReplicationConfig {
-                        host: config.host.clone(),  
+                        host: config.host.clone(),
                         port: config.port,
                         user: config.user.clone(),
                         password: config.password.clone(),
@@ -114,15 +116,15 @@ impl LogicalReplicationReader {
                         idle_wakeup_interval: std::time::Duration::from_secs(10),
                         buffer_events: 8192,
                     };
-                    
+
                     let client = ReplicationClient::connect(repl_config)
                         .await
                         .map_err(|e| to_py_err(format!("Connection failed: {}", e)))?;
-                    
+
                     state_guard.client = Some(client);
                 }
             }
-            
+
             // Get next event and convert to message
             loop {
                 // Take client temporarily out of state to call recv() without holding lock
@@ -133,15 +135,15 @@ impl LogicalReplicationReader {
                     }
                     state_guard.client.take()
                 };
-                
+
                 let mut client = match client_opt {
                     Some(c) => c,
                     None => return Ok(None),
                 };
-                
+
                 // Call recv() without holding the lock
                 let event_result = client.recv().await;
-                
+
                 // Now process the event with access to state
                 match event_result {
                     Ok(Some(event)) => {
@@ -150,7 +152,7 @@ impl LogicalReplicationReader {
                                 // Get decoder and decode
                                 let (decoded_msg, should_return_msg) = {
                                     let mut state_guard = state.lock().await;
-                                    
+
                                     match state_guard.decoder.decode(data) {
                                         Ok(pg_msg) => {
                                             // Update LSN based on auto_acknowledge setting
@@ -160,16 +162,22 @@ impl LogicalReplicationReader {
                                                 // Store pending LSN for manual acknowledgment
                                                 state_guard.pending_lsn = Some(wal_end);
                                             }
-                                            
+
                                             // Convert to ReplicationMessage
                                             let lsn_u64 = wal_end.into();
                                             let repl_msg = Python::with_gil(|py| {
-                                                Self::convert_message(py, &pg_msg, &state_guard.decoder, lsn_u64, &config)
+                                                Self::convert_message(
+                                                    py,
+                                                    &pg_msg,
+                                                    &state_guard.decoder,
+                                                    lsn_u64,
+                                                    &config,
+                                                )
                                             });
-                                            
+
                                             // Put client back
                                             state_guard.client = Some(client);
-                                            
+
                                             (Ok(()), repl_msg)
                                         }
                                         Err(e) => {
@@ -180,7 +188,7 @@ impl LogicalReplicationReader {
                                         }
                                     }
                                 };
-                                
+
                                 if let Ok(()) = decoded_msg {
                                     if let Some(msg) = should_return_msg {
                                         return Ok(Some(msg));
@@ -192,7 +200,7 @@ impl LogicalReplicationReader {
                                 // For other events, just put client back and continue
                                 let mut state_guard = state.lock().await;
                                 state_guard.client = Some(client);
-                                
+
                                 if matches!(event, ReplicationEvent::StoppedAt { .. }) {
                                     return Ok(None);
                                 }
@@ -216,60 +224,64 @@ impl LogicalReplicationReader {
             }
         })?))
     }
-    
+
     fn stop<'a>(&'a self, py: Python<'a>) -> PyResult<&'a PyAny> {
         let state = self.state.clone();
-        
+
         pyo3_asyncio::tokio::future_into_py(py, async move {
             let mut state_guard = state.lock().await;
             state_guard.stopped = true;
-            state_guard.client = None;  // Drop the client
-            
+            state_guard.client = None; // Drop the client
+
             Ok(())
         })
     }
-    
+
     /// Manually acknowledge processing up to the specified or pending LSN.
     /// Only needed when auto_acknowledge=False.
     #[pyo3(signature = (lsn=None))]
     fn acknowledge<'py>(&'py self, py: Python<'py>, lsn: Option<String>) -> PyResult<&'py PyAny> {
         let state = self.state.clone();
-        
+
         pyo3_asyncio::tokio::future_into_py(py, async move {
             let mut state_guard = state.lock().await;
-            
+
             // Take client temporarily
-            let client = state_guard.client.take()
-                .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                    "Client not available - may be in use by read_message()"
-                ))?;
-            
+            let client = state_guard.client.take().ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                    "Client not available - may be in use by read_message()",
+                )
+            })?;
+
             // Determine which LSN to acknowledge
             let lsn_to_ack = if let Some(lsn_str) = lsn {
                 // Parse provided LSN string
-                let lsn_u64 = lsn_str.parse::<u64>()
-                    .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                        format!("Invalid LSN format: {}", e)
-                    ))?;
+                let lsn_u64 = lsn_str.parse::<u64>().map_err(|e| {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                        "Invalid LSN format: {}",
+                        e
+                    ))
+                })?;
                 Lsn::from(lsn_u64)
             } else {
                 // Use pending LSN
-                state_guard.pending_lsn
-                    .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                        "No pending LSN to acknowledge"
-                    ))?
+                state_guard.pending_lsn.ok_or_else(|| {
+                    PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                        "No pending LSN to acknowledge",
+                    )
+                })?
             };
-            
+
             // Update applied LSN
             let mut client = client;
             client.update_applied_lsn(lsn_to_ack);
-            
+
             // Clear pending LSN
             state_guard.pending_lsn = None;
-            
+
             // Put client back
             state_guard.client = Some(client);
-            
+
             Ok(())
         })
     }
@@ -285,13 +297,13 @@ impl LogicalReplicationReader {
         config: &ReplicationConfig,
     ) -> Option<ReplicationMessage> {
         use std::time::{SystemTime, UNIX_EPOCH};
-        
+
         // Get current timestamp
         let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
         let ts_ms = now.as_millis() as i64;
         let ts_us = now.as_micros() as i64;
         let ts_ns = now.as_nanos() as i64;
-        
+
         // Helper to create source metadata (Debezium format)
         fn create_source_metadata(
             py: Python,
@@ -307,19 +319,21 @@ impl LogicalReplicationReader {
             source.set_item("connector", "pgoutput-decoder").ok();
             source.set_item("name", "pgoutput-decoder").ok();
             source.set_item("ts_ms", ts_ms).ok();
-            source.set_item("snapshot", if is_snapshot { "true" } else { "false" }).ok();
+            source
+                .set_item("snapshot", if is_snapshot { "true" } else { "false" })
+                .ok();
             source.set_item("db", database).ok();
             source.set_item("schema", schema).ok();
             source.set_item("table", table).ok();
             source.set_item("lsn", lsn).ok();
             source.into()
         }
-        
+
         match msg {
             PgOutputMessage::Begin(_) => None,
             PgOutputMessage::Commit(_) => None,
             PgOutputMessage::Relation(_) => None,
-            
+
             PgOutputMessage::Insert(insert) => {
                 if let Some(relation) = decoder.get_relation(insert.rel_id) {
                     // Build "after" data
@@ -330,11 +344,12 @@ impl LogicalReplicationReader {
                                 py,
                                 col_value.as_ref().map(|v| v.as_slice()),
                                 col_info.type_id,
-                            ).ok()?;
+                            )
+                            .ok()?;
                             after_dict.set_item(&col_info.name, py_value).ok()?;
                         }
                     }
-                    
+
                     let source = create_source_metadata(
                         py,
                         lsn,
@@ -344,7 +359,7 @@ impl LogicalReplicationReader {
                         &relation.name,
                         false,
                     );
-                    
+
                     Some(ReplicationMessage {
                         before: None,
                         after: Some(after_dict.into()),
@@ -358,7 +373,7 @@ impl LogicalReplicationReader {
                     None
                 }
             }
-            
+
             PgOutputMessage::Update(update) => {
                 if let Some(relation) = decoder.get_relation(update.rel_id) {
                     // Build "before" data (if available)
@@ -370,7 +385,8 @@ impl LogicalReplicationReader {
                                     py,
                                     col_value.as_ref().map(|v| v.as_slice()),
                                     col_info.type_id,
-                                ).ok()?;
+                                )
+                                .ok()?;
                                 before_dict.set_item(&col_info.name, py_value).ok()?;
                             }
                         }
@@ -378,7 +394,7 @@ impl LogicalReplicationReader {
                     } else {
                         None
                     };
-                    
+
                     // Build "after" data
                     let after_dict = PyDict::new(py);
                     for (i, col_value) in update.new_tuple.iter().enumerate() {
@@ -387,11 +403,12 @@ impl LogicalReplicationReader {
                                 py,
                                 col_value.as_ref().map(|v| v.as_slice()),
                                 col_info.type_id,
-                            ).ok()?;
+                            )
+                            .ok()?;
                             after_dict.set_item(&col_info.name, py_value).ok()?;
                         }
                     }
-                    
+
                     let source = create_source_metadata(
                         py,
                         lsn,
@@ -401,7 +418,7 @@ impl LogicalReplicationReader {
                         &relation.name,
                         false,
                     );
-                    
+
                     Some(ReplicationMessage {
                         before,
                         after: Some(after_dict.into()),
@@ -415,7 +432,7 @@ impl LogicalReplicationReader {
                     None
                 }
             }
-            
+
             PgOutputMessage::Delete(delete) => {
                 if let Some(relation) = decoder.get_relation(delete.rel_id) {
                     // Build "before" data
@@ -426,11 +443,12 @@ impl LogicalReplicationReader {
                                 py,
                                 col_value.as_ref().map(|v| v.as_slice()),
                                 col_info.type_id,
-                            ).ok()?;
+                            )
+                            .ok()?;
                             before_dict.set_item(&col_info.name, py_value).ok()?;
                         }
                     }
-                    
+
                     let source = create_source_metadata(
                         py,
                         lsn,
@@ -440,7 +458,7 @@ impl LogicalReplicationReader {
                         &relation.name,
                         false,
                     );
-                    
+
                     Some(ReplicationMessage {
                         before: Some(before_dict.into()),
                         after: None,
@@ -454,7 +472,7 @@ impl LogicalReplicationReader {
                     None
                 }
             }
-            
+
             _ => None,
         }
     }

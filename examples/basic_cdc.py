@@ -11,14 +11,14 @@ from pgoutput_decoder import message_to_debezium_json, format_operation, get_tab
 
 async def main():
     """Main function demonstrating basic CDC usage with e-commerce schema."""
-    
+
     # Configuration (update with your PostgreSQL details)
     HOST = "localhost"
     DATABASE_NAME = "ecommerce_db"
     PORT = 5432
     USER = "postgres"
     PASSWORD = "password"
-    
+
     # Create logical replication reader
     cdc_reader = pgoutput_decoder.LogicalReplicationReader(
         publication_name="ecommerce_pub",
@@ -29,18 +29,18 @@ async def main():
         user=USER,
         password=PASSWORD,
     )
-    
+
     print("Starting CDC stream for e-commerce database...")
     print("Monitoring tables: customers, orders, products, order_lines")
     print("Press Ctrl+C to stop\n")
-    
+
     try:
         # Consume messages using async for loop
         async for message in cdc_reader:
             if message is not None:
                 # Print formatted operation and table
                 print(f"{format_operation(message.op)} on {get_table_name(message)}")
-                
+
                 # Print message as JSON using helper function
                 print(message_to_debezium_json(message, indent=2))
                 print("-" * 80)

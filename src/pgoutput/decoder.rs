@@ -1,6 +1,6 @@
+use super::messages::*;
 use bytes::{Buf, Bytes};
 use std::io;
-use super::messages::*;
 
 /// Decoder for pgoutput binary protocol
 pub struct PgOutputDecoder {
@@ -14,15 +14,15 @@ impl PgOutputDecoder {
             relations: std::collections::HashMap::new(),
         }
     }
-    
+
     /// Decode a pgoutput message from bytes
     pub fn decode(&mut self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         if data.is_empty() {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "Empty message"));
         }
-        
+
         let msg_type = data.get_u8() as char;
-        
+
         match msg_type {
             'B' => self.decode_begin(data),
             'C' => self.decode_commit(data),
@@ -40,25 +40,25 @@ impl PgOutputDecoder {
             )),
         }
     }
-    
+
     fn decode_begin(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let final_lsn = data.get_u64();
         let timestamp = data.get_i64();
         let xid = data.get_u32();
-        
+
         Ok(PgOutputMessage::Begin(BeginMessage {
             final_lsn,
             timestamp,
             xid,
         }))
     }
-    
+
     fn decode_commit(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let flags = data.get_u8();
         let commit_lsn = data.get_u64();
         let end_lsn = data.get_u64();
         let timestamp = data.get_i64();
-        
+
         Ok(PgOutputMessage::Commit(CommitMessage {
             flags,
             commit_lsn,
@@ -66,21 +66,21 @@ impl PgOutputDecoder {
             timestamp,
         }))
     }
-    
+
     fn decode_relation(&mut self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let rel_id = data.get_u32();
         let namespace = read_cstring(&mut data)?;
         let name = read_cstring(&mut data)?;
         let replica_identity = data.get_u8();
         let n_columns = data.get_u16();
-        
+
         let mut columns = Vec::new();
         for _ in 0..n_columns {
             let flags = data.get_u8();
             let col_name = read_cstring(&mut data)?;
             let type_id = data.get_u32();
             let type_modifier = data.get_i32();
-            
+
             columns.push(ColumnInfo {
                 flags,
                 name: col_name,
@@ -88,7 +88,7 @@ impl PgOutputDecoder {
                 type_modifier,
             });
         }
-        
+
         let relation = RelationMessage {
             rel_id,
             namespace,
@@ -96,33 +96,33 @@ impl PgOutputDecoder {
             replica_identity,
             columns,
         };
-        
+
         // Cache the relation
         self.relations.insert(rel_id, relation.clone());
-        
+
         Ok(PgOutputMessage::Relation(relation))
     }
-    
+
     fn decode_insert(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let rel_id = data.get_u32();
         let tuple_type = data.get_u8();
-        
+
         if tuple_type != b'N' {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("Expected new tuple (N), got: {}", tuple_type as char),
             ));
         }
-        
+
         let tuple = read_tuple_data(&mut data)?;
-        
+
         Ok(PgOutputMessage::Insert(InsertMessage { rel_id, tuple }))
     }
-    
+
     fn decode_update(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let rel_id = data.get_u32();
         let tuple_type = data.get_u8();
-        
+
         let old_tuple = match tuple_type {
             b'O' | b'K' => {
                 let old = read_tuple_data(&mut data)?;
@@ -137,73 +137,76 @@ impl PgOutputDecoder {
                 ))
             }
         };
-        
+
         let new_tuple = read_tuple_data(&mut data)?;
-        
+
         Ok(PgOutputMessage::Update(UpdateMessage {
             rel_id,
             old_tuple,
             new_tuple,
         }))
     }
-    
+
     fn decode_delete(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let rel_id = data.get_u32();
         let tuple_type = data.get_u8();
-        
+
         if tuple_type != b'O' && tuple_type != b'K' {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("Expected old tuple (O/K), got: {}", tuple_type as char),
             ));
         }
-        
+
         let old_tuple = read_tuple_data(&mut data)?;
-        
+
         Ok(PgOutputMessage::Delete(DeleteMessage { rel_id, old_tuple }))
     }
-    
+
     fn decode_truncate(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let n_relations = data.get_u32();
         let options = data.get_u8();
-        
+
         let mut rel_ids = Vec::new();
         for _ in 0..n_relations {
             rel_ids.push(data.get_u32());
         }
-        
-        Ok(PgOutputMessage::Truncate(TruncateMessage { options, rel_ids }))
+
+        Ok(PgOutputMessage::Truncate(TruncateMessage {
+            options,
+            rel_ids,
+        }))
     }
-    
+
     fn decode_type(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let type_id = data.get_u32();
         let namespace = read_cstring(&mut data)?;
         let name = read_cstring(&mut data)?;
-        
+
         Ok(PgOutputMessage::Type(TypeMessage {
             type_id,
             namespace,
             name,
         }))
     }
-    
+
     fn decode_origin(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let lsn = data.get_u64();
         let name = read_cstring(&mut data)?;
-        
+
         Ok(PgOutputMessage::Origin(OriginMessage { lsn, name }))
     }
-    
+
     fn decode_message(&self, mut data: Bytes) -> Result<PgOutputMessage, io::Error> {
         let flags = data.get_u8();
         let transactional = (flags & 1) != 0;
         let lsn = data.get_u64();
         let prefix = read_cstring(&mut data)?;
         let content_len = data.get_u32() as usize;
-        
+
         let mut content = vec![0u8; content_len];
         data.copy_to_slice(&mut content);
-        
+
         Ok(PgOutputMessage::Message(LogicalMessage {
             transactional,
             lsn,
@@ -211,7 +214,7 @@ impl PgOutputDecoder {
             content,
         }))
     }
-    
+
     pub fn get_relation(&self, rel_id: u32) -> Option<&RelationMessage> {
         self.relations.get(&rel_id)
     }
@@ -233,18 +236,17 @@ fn read_cstring(data: &mut Bytes) -> Result<String, io::Error> {
         }
         bytes.push(byte);
     }
-    String::from_utf8(bytes)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
 
 /// Read tuple data (column values) from bytes
 fn read_tuple_data(data: &mut Bytes) -> Result<Vec<Option<Vec<u8>>>, io::Error> {
     let n_columns = data.get_u16();
     let mut tuple = Vec::new();
-    
+
     for _ in 0..n_columns {
         let value_type = data.get_u8() as char;
-        
+
         let value = match value_type {
             'n' => None, // NULL
             'u' => None, // UNCHANGED TOAST
@@ -262,9 +264,9 @@ fn read_tuple_data(data: &mut Bytes) -> Result<Vec<Option<Vec<u8>>>, io::Error> 
                 ))
             }
         };
-        
+
         tuple.push(value);
     }
-    
+
     Ok(tuple)
 }
