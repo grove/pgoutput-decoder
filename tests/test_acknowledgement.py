@@ -6,6 +6,8 @@ import asyncpg
 import pytest
 from testcontainers.postgres import PostgresContainer
 
+pytestmark = pytest.mark.docker
+
 
 @pytest.fixture(scope="function")
 async def pg_with_slot():

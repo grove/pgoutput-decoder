@@ -89,8 +89,13 @@ jobs:
           uv sync
           uv run maturin develop
 
-      - name: Run tests with Testcontainers
+      - name: Run tests (Linux - with Docker)
+        if: runner.os == 'Linux'
         run: uv run pytest tests/ -v --tb=short
+
+      - name: Run tests (macOS/Windows - skip Docker tests)
+        if: runner.os != 'Linux'
+        run: uv run pytest tests/ -v --tb=short -m "not docker"
 
   coverage:
     name: Code Coverage

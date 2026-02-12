@@ -11,6 +11,8 @@ from pgoutput_decoder import (
 )
 from testcontainers.postgres import PostgresContainer
 
+pytestmark = pytest.mark.docker
+
 
 def create_reader(db_config, auto_ack=True):
     """Helper function to create a LogicalReplicationReader."""
