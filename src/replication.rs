@@ -42,7 +42,7 @@ struct ReaderState {
 #[pymethods]
 impl LogicalReplicationReader {
     #[new]
-    #[allow(clippy::too_many_arguments)]  // PyO3 constructor needs all connection parameters
+    #[allow(clippy::too_many_arguments)] // PyO3 constructor needs all connection parameters
     #[pyo3(signature = (publication_name, slot_name, host, database, port=5432, user="postgres", password="", start_lsn=None, auto_acknowledge=true))]
     fn new(
         publication_name: String,
