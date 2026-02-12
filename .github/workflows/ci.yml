@@ -161,8 +161,9 @@ jobs:
           # Merge profraw files
           "$LLVM_PROFDATA" merge -sparse *.profraw -o coverage.profdata
           # Find the compiled Python extension in target/debug (where maturin builds it)
+          # Exclude deps/ directory which contains Rust build dependencies
           echo "Searching for Python extension in target/debug..."
-          EXTENSION=$(find target/debug -type f \( -name "*.so" -o -name "*.dylib" \) 2>/dev/null | head -1)
+          EXTENSION=$(find target/debug -maxdepth 1 -type f \( -name "*.so" -o -name "*.dylib" \) 2>/dev/null | head -1)
           echo "Using extension: $EXTENSION"
           if [ -z "$EXTENSION" ] || [ ! -f "$EXTENSION" ]; then
             echo "Error: Could not find Python extension in target/debug"
