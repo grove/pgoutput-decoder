@@ -954,6 +954,36 @@ uv run pytest tests/ -v
 uv run maturin build --release
 ```
 
+#### Code Coverage
+
+The project supports both Python and Rust code coverage:
+
+```bash
+# Python coverage only (skips Docker tests)
+just coverage
+
+# Rust coverage only (skips Docker tests, requires cargo-llvm-cov)
+just install-llvm-cov  # One-time installation
+just coverage-rust
+
+# Combined Python + Rust coverage (skips Docker tests)
+just coverage-all
+
+# Include Docker tests (requires Docker running)
+just coverage-docker              # Python only with Docker
+just coverage-rust-docker         # Rust with Docker
+just coverage-all-docker          # Both with Docker
+```
+
+**Local Development**: By default, coverage commands skip Docker-dependent tests for faster iteration. Use the `-docker` variants when you need complete coverage including integration tests.
+
+**GitHub Actions**: CI automatically generates and uploads both Python and Rust coverage to Codecov:
+- **Python coverage**: Measures `python/pgoutput_decoder/` code
+- **Rust coverage**: Measures `src/` code exercised by Python tests
+- **Flags**: Separate `python` and `rust` flags for tracking
+
+View coverage reports at: `https://codecov.io/gh/yourusername/pgoutput-decoder`
+
 ### Project Structure
 
 ```

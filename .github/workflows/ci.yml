@@ -116,6 +116,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -126,20 +128,46 @@ jobs:
       - name: Install maturin
         run: uv tool install maturin
 
-      - name: Install dependencies and build
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Install dependencies and build with coverage instrumentation
         run: |
           uv sync
-          uv run maturin develop
+          cargo llvm-cov clean --workspace
+        env:
+          RUSTFLAGS: '-C instrument-coverage'
 
-      - name: Run tests with coverage
+      - name: Build with maturin (instrumented)
+        run: uv run maturin develop
+        env:
+          RUSTFLAGS: '-C instrument-coverage'
+          LLVM_PROFILE_FILE: 'coverage-%p-%m.profraw'
+
+      - name: Run Python tests with coverage
         run: |
-          uv run pytest tests/ --cov=pgoutput_decoder --cov-report=xml --cov-report=term
+          uv run pytest tests/ --cov=pgoutput_decoder --cov-report=xml:python-coverage.xml --cov-report=term
+        env:
+          LLVM_PROFILE_FILE: 'coverage-%p-%m.profraw'
 
-      - name: Upload coverage to Codecov
+      - name: Generate Rust coverage report
+        run: |
+          cargo llvm-cov report --lcov --output-path rust-coverage.lcov
+
+      - name: Upload Python coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
+          files: ./python-coverage.xml
+          flags: python
+          name: python-coverage
+          fail_ci_if_error: false
+
+      - name: Upload Rust coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./rust-coverage.lcov
+          flags: rust
+          name: rust-coverage
           fail_ci_if_error: false
