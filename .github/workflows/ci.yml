@@ -34,6 +34,9 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
+      - name: Install maturin
+        run: uv tool install maturin
+
       - name: Rust format check
         run: cargo fmt --all -- --check
 
@@ -78,6 +81,9 @@ jobs:
         if: runner.os == 'Linux'
         uses: docker/setup-buildx-action@v3
 
+      - name: Install maturin
+        run: uv tool install maturin
+
       - name: Install dependencies and build
         run: |
           uv sync
@@ -111,6 +117,9 @@ jobs:
 
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
+
+      - name: Install maturin
+        run: uv tool install maturin
 
       - name: Install dependencies and build
         run: |
