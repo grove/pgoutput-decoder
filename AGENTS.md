@@ -15,17 +15,20 @@ Testing: pytest + Testcontainers (for E2E)
 📂 Project Structure
 Plaintext
 .
-├── Cargo.toml           # Rust metadata & dependencies
-├── pyproject.toml       # Python metadata, Ruff config, Maturin settings
-├── src/                 # Rust source code
-│   └── lib.rs           # PyO3 module definitions
-├── python/              # Python source code
-│   └── my_project/      # Main Python package
+├── Cargo.toml                  # Rust metadata & dependencies
+├── pyproject.toml              # Python metadata, Ruff config, Maturin settings
+├── justfile                    # Task runner for common commands
+├── .pre-commit-config.yaml     # Pre-commit hooks configuration
+├── src/                        # Rust source code
+│   └── lib.rs                  # PyO3 module definitions
+├── python/                     # Python source code
+│   └── my_project/             # Main Python package
 │       ├── __init__.py
 │       └── core.py
-├── tests/               # E2E and Unit tests
-│   └── e2e/             # Testcontainers-based tests
-└── .python-version      # Managed by uv
+├── tests/                      # E2E and Unit tests
+│   └── e2e/                    # Testcontainers-based tests
+├── .vscode/settings.json       # VS Code configuration
+└── .python-version             # Managed by uv
 🚀 Development Workflow
 1. Setup & Installation
 Always use uv for environment management.
@@ -34,14 +37,44 @@ Sync environment: uv sync
 
 Build Rust bindings (dev): uv run maturin develop (This installs the Rust module into the current venv).
 
+Quick setup: just setup (requires just: brew install just)
+
 2. Linting & Formatting
-We use ruff for everything Python.
+We use ruff for everything Python and clippy for Rust.
 
-Check: uv run ruff check .
+**Recommended**: Use pre-commit hooks to catch issues before commit:
 
-Format: uv run ruff format .
+bash
+# One-time setup
+pip install pre-commit
+pre-commit install
 
-Rust: cargo fmt and cargo clippy
+# Manual run
+pre-commit run --all-files
+
+
+**Manual checks:**
+
+Python:
+- Check: uv run ruff check .
+- Format: uv run ruff format .
+
+Rust:
+- Format: cargo fmt
+- Lint: cargo clippy --all-targets --all-features -- -D warnings
+
+**Quick commands** (requires just):
+- just check - Run all checks
+- just lint - Run all linters
+- just fmt - Format all code
+- just pre-commit - Full pre-commit check
+
+**Auto-watch mode** (requires cargo-watch):
+bash
+just watch  # Auto-run clippy on file changes
+
+Always run just check or pre-commit before pushing to avoid CI failures.
+
 
 3. Testing
 Run all tests: uv run pytest
@@ -49,6 +82,8 @@ Run all tests: uv run pytest
 E2E Tests: Ensure Docker is running, as these use Testcontainers.
 
 Note: Use the testcontainers[postgres] (or relevant module) in pyproject.toml.
+
+Quick: just test (runs both Rust and Python tests)
 
 📝 Coding Standards
 Rust Bindings: Prefer #[pyfunction] and #[pymodule]. Avoid manual type conversions; let PyO3 handle the heavy lifting where possible.

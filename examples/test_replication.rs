@@ -12,7 +12,7 @@ async fn setup_database() -> anyhow::Result<(String, u16)> {
     // Use Docker to start a PostgreSQL instance
     println!("Starting PostgreSQL container...");
     let output = std::process::Command::new("docker")
-        .args(&[
+        .args([
             "run",
             "-d",
             "--rm",
@@ -44,14 +44,14 @@ async fn setup_database() -> anyhow::Result<(String, u16)> {
 
     // Get the mapped port
     let output = std::process::Command::new("docker")
-        .args(&["port", &container_id, "5432"])
+        .args(["port", &container_id, "5432"])
         .output()
         .context("Failed to get port")?;
 
     let port_mapping = String::from_utf8(output.stdout)?;
     let port: u16 = port_mapping
         .split(':')
-        .last()
+        .next_back()
         .context("Invalid port format")?
         .trim()
         .parse()

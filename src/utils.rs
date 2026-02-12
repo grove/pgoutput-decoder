@@ -4,6 +4,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 /// Build a PostgreSQL connection string from parameters
+#[allow(dead_code)]
 pub fn build_connection_string(
     host: &str,
     database: &str,
@@ -25,6 +26,7 @@ pub fn build_connection_string(
 }
 
 /// Exponential backoff implementation for reconnection attempts
+#[allow(dead_code)]
 pub struct ExponentialBackoff {
     pub current_delay: Duration,
     pub max_delay: Duration,
@@ -32,6 +34,7 @@ pub struct ExponentialBackoff {
     pub attempts: u32,
 }
 
+#[allow(dead_code)]
 impl ExponentialBackoff {
     pub fn new() -> Self {
         Self {

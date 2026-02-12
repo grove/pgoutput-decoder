@@ -1,7 +1,8 @@
 """Pytest configuration and fixtures for pgoutput-decoder tests."""
 
-import pytest
 import asyncio
+
+import pytest
 from testcontainers.postgres import PostgresContainer
 
 

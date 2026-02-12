@@ -5,7 +5,6 @@ This library provides a simple Python API for consuming PostgreSQL logical repli
 streams using the pgoutput plugin.
 """
 
-import json
 from typing import Any, Dict, Optional
 
 from ._pgoutput_decoder import LogicalReplicationReader, ReplicationMessage

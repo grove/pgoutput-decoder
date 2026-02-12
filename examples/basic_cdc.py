@@ -5,29 +5,30 @@ This example demonstrates using helper functions to format CDC messages.
 """
 
 import asyncio
+
 import pgoutput_decoder
-from pgoutput_decoder import message_to_debezium_json, format_operation, get_table_name
+from pgoutput_decoder import format_operation, get_table_name, message_to_debezium_json
 
 
 async def main():
     """Main function demonstrating basic CDC usage with e-commerce schema."""
 
     # Configuration (update with your PostgreSQL details)
-    HOST = "localhost"
-    DATABASE_NAME = "ecommerce_db"
-    PORT = 5432
-    USER = "postgres"
-    PASSWORD = "password"
+    host = "localhost"
+    database_name = "ecommerce_db"
+    port = 5432
+    user = "postgres"
+    password = "password"
 
     # Create logical replication reader
     cdc_reader = pgoutput_decoder.LogicalReplicationReader(
         publication_name="ecommerce_pub",
         slot_name="ecommerce_slot",
-        host=HOST,
-        database=DATABASE_NAME,
-        port=PORT,
-        user=USER,
-        password=PASSWORD,
+        host=host,
+        database=database_name,
+        port=port,
+        user=user,
+        password=password,
     )
 
     print("Starting CDC stream for e-commerce database...")

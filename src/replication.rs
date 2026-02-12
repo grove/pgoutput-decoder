@@ -1,12 +1,10 @@
-use futures::StreamExt;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio_postgres::NoTls;
 
 use crate::pgoutput::{PgOutputDecoder, PgOutputMessage, ReplicationMessage};
-use crate::utils::{build_connection_string, to_py_err, ExponentialBackoff};
+use crate::utils::to_py_err;
 
 use pgwire_replication::{
     Lsn, ReplicationClient, ReplicationConfig as PgReplicationConfig, ReplicationEvent, TlsConfig,
@@ -36,6 +34,7 @@ struct ReaderState {
     decoder: PgOutputDecoder,
     client: Option<ReplicationClient>,
     stopped: bool,
+    #[allow(dead_code)]
     current_lsn: Option<u64>,
     pending_lsn: Option<Lsn>,
 }
@@ -43,6 +42,7 @@ struct ReaderState {
 #[pymethods]
 impl LogicalReplicationReader {
     #[new]
+    #[allow(clippy::too_many_arguments)]  // PyO3 constructor needs all connection parameters
     #[pyo3(signature = (publication_name, slot_name, host, database, port=5432, user="postgres", password="", start_lsn=None, auto_acknowledge=true))]
     fn new(
         publication_name: String,
@@ -128,7 +128,7 @@ impl LogicalReplicationReader {
             // Get next event and convert to message
             loop {
                 // Take client temporarily out of state to call recv() without holding lock
-                let mut client_opt = {
+                let client_opt = {
                     let mut state_guard = state.lock().await;
                     if state_guard.stopped {
                         return Ok(None);
@@ -273,7 +273,7 @@ impl LogicalReplicationReader {
             };
 
             // Update applied LSN
-            let mut client = client;
+            client.update_applied_lsn(lsn_to_ack);
             client.update_applied_lsn(lsn_to_ack);
 
             // Clear pending LSN

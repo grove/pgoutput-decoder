@@ -103,9 +103,11 @@ CDC captures changes (inserts, updates, deletes) from your database and streams 
 ### From PyPI (Recommended)
 
 ```bash
-pip install pgoutput-decoder
-# or with uv
+# Using uv (recommended)
 uv pip install pgoutput-decoder
+
+# Or using pip
+pip install pgoutput-decoder
 ```
 
 ### From Source
@@ -115,8 +117,6 @@ Requires Rust 1.70+ and Python 3.12+:
 ```bash
 git clone https://github.com/yourusername/pgoutput-decoder
 cd pgoutput-decoder
-
-# Using uv (recommended)
 
 # Using uv (recommended)
 uv sync

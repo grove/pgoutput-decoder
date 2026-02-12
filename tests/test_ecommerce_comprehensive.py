@@ -1,10 +1,11 @@
 """Comprehensive end-to-end tests for e-commerce schema with logical replication."""
 
 import asyncio
-import pytest
-import asyncpg
 from datetime import date
 from decimal import Decimal
+
+import asyncpg
+import pytest
 from testcontainers.postgres import PostgresContainer
 
 
@@ -811,7 +812,7 @@ async def test_api_matches_specification(ecommerce_db):
 
     # Insert test data
     await conn.execute(
-        """INSERT INTO customers (_id, name, credit_limit, _deleted) 
+        """INSERT INTO customers (_id, name, credit_limit, _deleted)
            VALUES ($1, $2, $3, $4)""",
         "CUST999",
         "Test User",

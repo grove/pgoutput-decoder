@@ -49,6 +49,7 @@ impl ReplicationMessage {
 
 /// Begin transaction message
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BeginMessage {
     pub final_lsn: u64,
     pub timestamp: i64,
@@ -57,6 +58,7 @@ pub struct BeginMessage {
 
 /// Commit transaction message
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CommitMessage {
     pub flags: u8,
     pub commit_lsn: u64,
@@ -66,6 +68,7 @@ pub struct CommitMessage {
 
 /// Relation (table schema) message
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct RelationMessage {
     pub rel_id: u32,
     pub namespace: String,
@@ -75,6 +78,7 @@ pub struct RelationMessage {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ColumnInfo {
     pub flags: u8,
     pub name: String,
@@ -106,6 +110,7 @@ pub struct DeleteMessage {
 
 /// Truncate message
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TruncateMessage {
     pub options: u8,
     pub rel_ids: Vec<u32>,
@@ -113,6 +118,7 @@ pub struct TruncateMessage {
 
 /// Type message
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TypeMessage {
     pub type_id: u32,
     pub namespace: String,
@@ -121,6 +127,7 @@ pub struct TypeMessage {
 
 /// Origin message
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct OriginMessage {
     pub lsn: u64,
     pub name: String,
@@ -128,6 +135,7 @@ pub struct OriginMessage {
 
 /// Logical replication message (sent via pg_logical_emit_message)
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LogicalMessage {
     pub transactional: bool,
     pub lsn: u64,
@@ -137,6 +145,7 @@ pub struct LogicalMessage {
 
 /// Enum for all pgoutput message types
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum PgOutputMessage {
     Begin(BeginMessage),
     Commit(CommitMessage),

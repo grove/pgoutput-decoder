@@ -1,3 +1,5 @@
+#![allow(non_local_definitions)] // False positive with PyO3 macros in Rust 1.93+
+
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 

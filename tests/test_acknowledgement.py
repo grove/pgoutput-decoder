@@ -1,8 +1,9 @@
 """Tests for manual LSN acknowledgement functionality."""
 
 import asyncio
-import pytest
+
 import asyncpg
+import pytest
 from testcontainers.postgres import PostgresContainer
 
 
@@ -252,7 +253,7 @@ async def test_acknowledge_multiple_messages(pg_with_slot):
 
     # Insert multiple customers
     await config["conn"].execute("""
-        INSERT INTO customers (_id, name, credit_limit) VALUES 
+        INSERT INTO customers (_id, name, credit_limit) VALUES
         ('C2', 'Bob', 10000),
         ('C3', 'Carol', 7500),
         ('C4', 'Dave', 3000)

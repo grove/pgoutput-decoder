@@ -121,9 +121,8 @@ fn convert_json(py: Python, data: &[u8]) -> PyResult<PyObject> {
 fn convert_bytea(py: Python, data: &[u8]) -> PyResult<PyObject> {
     // bytea is sent as hex string in text format (\\x prefix)
     let s = str::from_utf8(data).unwrap_or("");
-    if s.starts_with("\\x") {
+    if let Some(hex_str) = s.strip_prefix("\\x") {
         // Decode hex
-        let hex_str = &s[2..];
         match hex::decode(hex_str) {
             Ok(bytes) => Ok(bytes.into_py(py)),
             Err(_) => Ok(data.into_py(py)),

@@ -6,8 +6,9 @@ Run this after setting up the test database with:
 """
 
 import asyncio
+
 import pgoutput_decoder
-from pgoutput_decoder import message_to_debezium_json, format_operation, get_table_name
+from pgoutput_decoder import format_operation, get_table_name, message_to_debezium_json
 
 
 async def demo_debezium_format():
@@ -54,9 +55,9 @@ async def demo_manual_acknowledge():
 
     async for message in reader:
         if message is not None:
-            print(
-                f"\nProcessing message {messages_processed + 1}: {format_operation(message.op)} on {get_table_name(message)}"
-            )
+            op = format_operation(message.op)
+            table = get_table_name(message)
+            print(f"\nProcessing message {messages_processed + 1}: {op} on {table}")
             print(message_to_debezium_json(message, indent=None))  # Compact JSON
 
             messages_processed += 1

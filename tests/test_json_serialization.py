@@ -1,15 +1,15 @@
 """Tests for JSON serialization functions and Debezium format compliance."""
 
 import json
-import pytest
-import asyncpg
-from testcontainers.postgres import PostgresContainer
 
+import asyncpg
+import pytest
 from pgoutput_decoder import (
     LogicalReplicationReader,
     message_to_debezium_json,
     message_to_dict,
 )
+from testcontainers.postgres import PostgresContainer
 
 
 def create_reader(db_config, auto_ack=True):
@@ -543,5 +543,6 @@ async def test_rust_json_method_compatibility(json_test_db):
         parsed_function = json.loads(json_from_function)
 
         assert parsed_method == parsed_function, (
-            f"message.json() and message_to_debezium_json() should produce same result with indent={indent}"
+            "message.json() and message_to_debezium_json() "
+            f"should produce same result with indent={indent}"
         )
