@@ -160,11 +160,19 @@ jobs:
           echo "Using llvm-cov: $LLVM_COV"
           # Merge profraw files
           "$LLVM_PROFDATA" merge -sparse *.profraw -o coverage.profdata
-          # Find the compiled Python extension
-          EXTENSION=$(find target/debug -name "_pgoutput_decoder*.so" -o -name "_pgoutput_decoder*.dylib" | head -1)
+          # Find the compiled Python extension (maturin installs to site-packages)
+          EXTENSION=$(python -c "import pgoutput_decoder, os; print(os.path.join(os.path.dirname(pgoutput_decoder.__file__), '_pgoutput_decoder'))" 2>/dev/null)
+          # Try to find any .so file matching the module name
+          if [ -z "$EXTENSION" ] || [ ! -f "$EXTENSION.so" ]; then
+            EXTENSION=$(find .venv/lib -name "_pgoutput_decoder*.so" 2>/dev/null | head -1)
+          else
+            EXTENSION="$EXTENSION.so"
+          fi
           echo "Using extension: $EXTENSION"
-          if [ -z "$EXTENSION" ]; then
+          if [ -z "$EXTENSION" ] || [ ! -f "$EXTENSION" ]; then
             echo "Error: Could not find Python extension"
+            echo "Searching in common locations..."
+            find . -name "_pgoutput_decoder*.so" -o -name "_pgoutput_decoder*.dylib" 2>/dev/null || true
             exit 1
           fi
           # Generate lcov report
