@@ -9,7 +9,7 @@ name = "_pgoutput_decoder"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.20", features = ["extension-module", "abi3-py312"] }
+pyo3 = { version = "0.28", features = ["extension-module", "abi3-py312"] }
 pyo3-asyncio = { version = "0.20", features = ["tokio-runtime"] }
 tokio = { version = "1.41", features = ["full"] }
 bytes = "1.8"
