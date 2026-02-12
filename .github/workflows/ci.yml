@@ -160,20 +160,16 @@ jobs:
           echo "Using llvm-cov: $LLVM_COV"
           # Merge profraw files
           "$LLVM_PROFDATA" merge -sparse *.profraw -o coverage.profdata
-          # Find the compiled Python extension (search in multiple locations)
-          echo "Searching for Python extension..."
-          EXTENSION=$(find . -path ./target -prune -o -name "_pgoutput_decoder*.so" -type f -print 2>/dev/null | head -1)
-          if [ -z "$EXTENSION" ]; then
-            echo "Trying Python import to locate module..."
-            EXTENSION=$(uv run python -c "import pgoutput_decoder, os, glob; pattern=os.path.join(os.path.dirname(pgoutput_decoder.__file__), '_pgoutput_decoder*.so'); matches=glob.glob(pattern); print(matches[0] if matches else '')" 2>/dev/null)
-          fi
+          # Find the compiled Python extension in target/debug (where maturin builds it)
+          echo "Searching for Python extension in target/debug..."
+          EXTENSION=$(find target/debug -type f \( -name "*.so" -o -name "*.dylib" \) 2>/dev/null | head -1)
           echo "Using extension: $EXTENSION"
           if [ -z "$EXTENSION" ] || [ ! -f "$EXTENSION" ]; then
-            echo "Error: Could not find Python extension"
-            echo "Searching everywhere for debug..."
-            find . -name "_pgoutput_decoder*.so" -o -name "_pgoutput_decoder*.dylib" 2>/dev/null || echo "No extensions found"
-            echo "Contents of .venv/lib (if exists):"
-            find .venv/lib -name "*.so" 2>/dev/null | head -10 || echo ".venv/lib not found"
+            echo "Error: Could not find Python extension in target/debug"
+            echo "Contents of target/debug:"
+            ls -la target/debug/ 2>/dev/null || echo "target/debug not found"
+            echo "Searching for all .so/.dylib files:"
+            find target -name "*.so" -o -name "*.dylib" 2>/dev/null || echo "No shared libraries found"
             exit 1
           fi
           # Generate lcov report

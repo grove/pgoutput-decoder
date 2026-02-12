@@ -96,14 +96,24 @@ coverage-rust-docker:
     export LLVM_PROFDATA=/opt/homebrew/opt/llvm/bin/llvm-profdata
     set -euo pipefail
     echo "🦀 Building with coverage instrumentation..."
-    cargo llvm-cov clean --workspace
+    rm -f *.profraw
     RUSTFLAGS='-C instrument-coverage' uv sync
     RUSTFLAGS='-C instrument-coverage' LLVM_PROFILE_FILE='coverage-%p-%m.profraw' uv tool run maturin develop
     echo "🧪 Running ALL Python tests (including Docker) to collect Rust coverage..."
     LLVM_PROFILE_FILE='coverage-%p-%m.profraw' uv run pytest tests/ -v
     echo "📊 Generating Rust coverage report..."
-    cargo llvm-cov report --lcov --output-path rust-coverage.lcov
-    cargo llvm-cov report
+    $LLVM_PROFDATA merge -sparse *.profraw -o coverage.profdata
+    $LLVM_COV export --format=lcov \
+        --instr-profile=coverage.profdata \
+        --ignore-filename-regex='/.cargo/' \
+        --ignore-filename-regex='/rustc/' \
+        $(find target/debug -name "*.so" -o -name "*.dylib" | head -1) \
+        > rust-coverage.lcov
+    $LLVM_COV report \
+        --instr-profile=coverage.profdata \
+        --ignore-filename-regex='/.cargo/' \
+        --ignore-filename-regex='/rustc/' \
+        $(find target/debug -name "*.so" -o -name "*.dylib" | head -1)
     echo ""
     echo "✅ Rust coverage report saved to rust-coverage.lcov"
 
@@ -156,11 +166,21 @@ coverage-all-docker:
     uv run pytest tests/ --cov=pgoutput_decoder --cov-report=term --cov-report=xml:python-coverage.xml
     echo ""
     echo "🦀 Rust coverage:"
-    cargo llvm-cov clean --workspace
+    rm -f *.profraw
     RUSTFLAGS='-C instrument-coverage' uv tool run maturin develop
     LLVM_PROFILE_FILE='coverage-%p-%m.profraw' uv run pytest tests/
-    cargo llvm-cov report --lcov --output-path rust-coverage.lcov
-    cargo llvm-cov report
+    $LLVM_PROFDATA merge -sparse *.profraw -o coverage.profdata
+    $LLVM_COV export --format=lcov \
+        --instr-profile=coverage.profdata \
+        --ignore-filename-regex='/.cargo/' \
+        --ignore-filename-regex='/rustc/' \
+        $(find target/debug -name "*.so" -o -name "*.dylib" | head -1) \
+        > rust-coverage.lcov
+    $LLVM_COV report \
+        --instr-profile=coverage.profdata \
+        --ignore-filename-regex='/.cargo/' \
+        --ignore-filename-regex='/rustc/' \
+        $(find target/debug -name "*.so" -o -name "*.dylib" | head -1)
     echo ""
     echo "✅ Coverage files generated:"
     echo "   - Python: python-coverage.xml"
