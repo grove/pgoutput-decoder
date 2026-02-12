@@ -77,6 +77,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || contains(github.ref, 'rc') || contains(github.ref, 'beta')
 
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/pgoutput-decoder
+
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -90,19 +97,23 @@ jobs:
           path: dist
 
       - name: Publish to Test PyPI
-        uses: PyO3/maturin-action@v1
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          command: upload
-          args: --skip-existing dist/*
           repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
 
   publish-pypi:
     name: Publish to PyPI
     needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'rc') && !contains(github.ref, 'beta')
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pgoutput-decoder
+
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
 
     steps:
       - uses: actions/download-artifact@v4
@@ -117,12 +128,9 @@ jobs:
           path: dist
 
       - name: Publish to PyPI
-        uses: PyO3/maturin-action@v1
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          command: upload
-          args: --skip-existing dist/*
+          skip-existing: true
 
   create-github-release:
     name: Create GitHub Release
