@@ -40,11 +40,10 @@ Usage:
 
 import asyncio
 import os
-from typing import Any, Dict, Optional
-
-from celery import Celery
+from typing import Any, Dict
 
 import pgoutput_decoder
+from celery import Celery
 from pgoutput_decoder import ReplicationMessage, format_operation, get_table_name
 
 # ============================================================================
@@ -279,7 +278,7 @@ async def consume_and_dispatch():
     """
     print("Starting CDC consumer...")
     print(f"Celery broker: {BROKER_URL}")
-    print(f"Dispatching messages to Celery workers...\n")
+    print("Dispatching messages to Celery workers...\n")
 
     reader = pgoutput_decoder.LogicalReplicationReader(
         publication_name="ecommerce_pub",
