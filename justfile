@@ -54,8 +54,9 @@ test: test-rust test-python
 coverage:
     uv run pytest tests/ -m "not docker" --cov=pgoutput_decoder --cov-report=term --cov-report=html
     echo ""
-    echo "📊 Coverage report generated in htmlcov/index.html"
-    echo "Run 'just coverage-view' to open in browser"
+    echo "📊 Python coverage report generated in htmlcov/index.html"
+    echo "Run 'just coverage-view' to open in browser (Python only)"
+    echo "Run 'just coverage-all' for combined Python + Rust coverage"
     echo ""
     echo "💡 To include Docker tests, run 'just coverage-docker'"
 
@@ -65,9 +66,21 @@ coverage-docker:
     echo ""
     echo "📊 Coverage report generated in htmlcov/index.html"
 
-# Open coverage report in browser
+# Open coverage report in browser (opens both Python and Rust if available)
 coverage-view:
-    open htmlcov/index.html
+    #!/usr/bin/env bash
+    if [ -f htmlcov/index.html ]; then
+        echo "📊 Opening Python coverage report..."
+        open htmlcov/index.html
+    fi
+    if [ -d rust-htmlcov ]; then
+        echo "📊 Opening Rust coverage report..."
+        open rust-htmlcov/index.html
+    fi
+    if [ ! -f htmlcov/index.html ] && [ ! -d rust-htmlcov ]; then
+        echo "❌ No coverage reports found. Run 'just coverage' or 'just coverage-all' first."
+        exit 1
+    fi
 
 # Run tests with Rust code coverage (requires cargo-llvm-cov)
 coverage-rust:
@@ -86,6 +99,7 @@ coverage-rust:
     cargo llvm-cov report
     echo ""
     echo "✅ Rust coverage report saved to rust-coverage.lcov"
+    echo "Run 'just coverage-view' to open HTML report in browser"
     echo ""
     echo "💡 To include Docker tests, run 'just coverage-rust-docker'"
 
@@ -114,8 +128,18 @@ coverage-rust-docker:
         --ignore-filename-regex='/.cargo/' \
         --ignore-filename-regex='/rustc/' \
         $(find target/debug -name "*.so" -o -name "*.dylib" | head -1)
+    echo "📊 Generating Rust HTML coverage report..."
+    $LLVM_COV show --format=html \
+        --instr-profile=coverage.profdata \
+        --ignore-filename-regex='/.cargo/' \
+        --ignore-filename-regex='/rustc/' \
+        $(find target/debug -name "*.so" -o -name "*.dylib" | head -1) \
+        --output-dir=rust-htmlcov
     echo ""
-    echo "✅ Rust coverage report saved to rust-coverage.lcov"
+    echo "✅ Rust coverage reports generated:"
+    echo "   - LCOV: rust-coverage.lcov"
+    echo "   - HTML: rust-htmlcov/index.html"
+    echo "Run 'just coverage-view' to open HTML report in browser"
 
 # Run combined Python + Rust coverage (skips Docker tests)
 coverage-all:
@@ -124,7 +148,7 @@ coverage-all:
     export LLVM_PROFDATA=/opt/homebrew/opt/llvm/bin/llvm-profdata
     set -euo pipefail
     echo "🐍 Python coverage:"
-    uv run pytest tests/ -m "not docker" --cov=pgoutput_decoder --cov-report=term --cov-report=xml:python-coverage.xml
+    uv run pytest tests/ -m "not docker" --cov=pgoutput_decoder --cov-report=term --cov-report=html --cov-report=xml:python-coverage.xml
     echo ""
     echo "🦀 Rust coverage:"
     # Clean old profraw files
@@ -147,10 +171,20 @@ coverage-all:
         --ignore-filename-regex='/.cargo/' \
         --ignore-filename-regex='/rustc/' \
         $(find target/debug -name "*.so" -o -name "*.dylib" | head -1)
+    echo "📊 Generating Rust HTML coverage report..."
+    $LLVM_COV show --format=html \
+        --instr-profile=coverage.profdata \
+        --ignore-filename-regex='/.cargo/' \
+        --ignore-filename-regex='/rustc/' \
+        $(find target/debug -name "*.so" -o -name "*.dylib" | head -1) \
+        --output-dir=rust-htmlcov
     echo ""
     echo "✅ Coverage files generated:"
-    echo "   - Python: python-coverage.xml"
-    echo "   - Rust: rust-coverage.lcov"
+    echo "   - Python XML: python-coverage.xml"
+    echo "   - Python HTML: htmlcov/index.html"
+    echo "   - Rust LCOV: rust-coverage.lcov"
+    echo "   - Rust HTML: rust-htmlcov/index.html"
+    echo "Run 'just coverage-view' to open HTML reports in browser"
     echo ""
     echo "💡 To include Docker tests, run 'just coverage-all-docker'"
 
@@ -163,7 +197,7 @@ coverage-all-docker:
     echo "⚠️  This requires Docker to be running!"
     echo ""
     echo "🐍 Python coverage:"
-    uv run pytest tests/ --cov=pgoutput_decoder --cov-report=term --cov-report=xml:python-coverage.xml
+    uv run pytest tests/ --cov=pgoutput_decoder --cov-report=term --cov-report=html --cov-report=xml:python-coverage.xml
     echo ""
     echo "🦀 Rust coverage:"
     rm -f *.profraw
@@ -181,10 +215,20 @@ coverage-all-docker:
         --ignore-filename-regex='/.cargo/' \
         --ignore-filename-regex='/rustc/' \
         $(find target/debug -name "*.so" -o -name "*.dylib" | head -1)
+    echo "📊 Generating Rust HTML coverage report..."
+    $LLVM_COV show --format=html \
+        --instr-profile=coverage.profdata \
+        --ignore-filename-regex='/.cargo/' \
+        --ignore-filename-regex='/rustc/' \
+        $(find target/debug -name "*.so" -o -name "*.dylib" | head -1) \
+        --output-dir=rust-htmlcov
     echo ""
     echo "✅ Coverage files generated:"
-    echo "   - Python: python-coverage.xml"
-    echo "   - Rust: rust-coverage.lcov"
+    echo "   - Python XML: python-coverage.xml"
+    echo "   - Python HTML: htmlcov/index.html"
+    echo "   - Rust LCOV: rust-coverage.lcov"
+    echo "   - Rust HTML: rust-htmlcov/index.html"
+    echo "Run 'just coverage-view' to open HTML reports in browser"
 
 # Install cargo-llvm-cov for Rust coverage
 install-llvm-cov:
@@ -202,7 +246,8 @@ build:
 # Clean build artifacts
 clean:
     cargo clean
-    rm -rf dist/ target/
+    rm -rf dist/ target/ htmlcov/ rust-htmlcov/
+    rm -f *.profraw coverage.profdata rust-coverage.lcov python-coverage.xml
 
 # Setup development environment
 setup:
