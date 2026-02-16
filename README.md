@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/pgoutput-decoder)](https://pypi.org/project/pgoutput-decoder/)
 [![Python Versions](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![CI](https://github.com/grove/pgoutput-decoder/workflows/CI/badge.svg)](https://github.com/grove/pgoutput-decoder/actions)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 **Rust-powered PostgreSQL CDC (Change Data Capture) library with Debezium-compatible output for Python 3.12+**
 
@@ -1081,7 +1081,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+Apache License Version 2.0 - see [LICENSE](LICENSE) file for details.
 
 ## Credits
 
