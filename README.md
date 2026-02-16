@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/pgoutput-decoder)](https://pypi.org/project/pgoutput-decoder/)
 [![Python Versions](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
-[![CI](https://github.com/yourusername/pgoutput-decoder/workflows/CI/badge.svg)](https://github.com/yourusername/pgoutput-decoder/actions)
+[![CI](https://github.com/grove/pgoutput-decoder/workflows/CI/badge.svg)](https://github.com/grove/pgoutput-decoder/actions)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **Rust-powered PostgreSQL CDC (Change Data Capture) library with Debezium-compatible output for Python 3.12+**
@@ -37,11 +37,9 @@ Transform PostgreSQL changes into Debezium-format events with blazing-fast Rust 
 ## Features
 
 ### ⚡ Performance
-- **Rust-Powered Core**: Critical path implemented in Rust using `tokio-postgres`
+- **Rust-Powered Core**: Critical path implemented in Rust using `pgwire-replication`
 - **Zero-Copy Decoding**: Minimal allocations for high-throughput scenarios
 - **Async/Await Native**: Built on `tokio` and `pyo3-asyncio` for true async Python integration
-
-### 🔄 Compatibility
 
 ### 🔄 Compatibility
 - **Debezium Format**: Drop-in compatible with Debezium CDC event format
@@ -79,8 +77,6 @@ CDC captures changes (inserts, updates, deletes) from your database and streams 
 | **Debezium Format** | 🟢 Built-in | 🔴 Manual | 🔴 Manual | 🔴 Manual |
 | **Type Safety** | 🟢 Full | 🟡 Partial | 🟡 Partial | 🟡 Partial |
 | **Auto-reconnect** | 🟢 Yes | 🔴 No | 🔴 No | 🔴 No |
-| **Python 3.12+
-
 | **Python 3.12+** | 🟢 Optimized | 🟡 Supported | 🟡 Supported | 🟡 Supported |
 
 ### When to Use pgoutput-decoder
@@ -115,7 +111,7 @@ pip install pgoutput-decoder
 Requires Rust 1.70+ and Python 3.12+:
 
 ```bash
-git clone https://github.com/yourusername/pgoutput-decoder
+git clone https://github.com/grove/pgoutput-decoder
 cd pgoutput-decoder
 
 # Using uv (recommended)
@@ -163,9 +159,6 @@ async def main():
         elif message.op == "d":  # DELETE
             print(f"Deleted row: {message.before}")
         
-        # Access source metadata
-        print(f"Table: {message.source['schema']}.{message.source['table']}")
-        print(f"LSN: {message.source['lsn']}")
         # Access source metadata
         print(f"Table: {message.source['schema']}.{message.source['table']}")
         print(f"LSN: {message.source['lsn']}")
@@ -823,9 +816,9 @@ cdc_reader = pgoutput_decoder.LogicalReplicationReader(
 ### SSL/TLS
 
 ```python
-# Enable SSL (implementation depends on tokio-postgres configuration)
-# Currently supported via connection parameters
-# See: https://www.postgresql.org/docs/current/libpq-ssl.html
+# SSL/TLS support via pgwire-replication TLS configuration
+# Standard PostgreSQL libpq SSL environment variables are supported:
+# PGSSLMODE, PGSSLCERT, PGSSLKEY, PGSSLROOTCERT
 ```
 
 ### Audit Logging
@@ -918,7 +911,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/pgoutput-decoder
+git clone https://github.com/grove/pgoutput-decoder
 cd pgoutput-decoder
 
 # Install uv (if not already installed)
@@ -982,7 +975,7 @@ just coverage-all-docker          # Both with Docker
 - **Rust coverage**: Measures `src/` code exercised by Python tests
 - **Flags**: Separate `python` and `rust` flags for tracking
 
-View coverage reports at: `https://codecov.io/gh/yourusername/pgoutput-decoder`
+View coverage reports at: `https://codecov.io/gh/grove/pgoutput-decoder`
 
 ### Project Structure
 
@@ -1065,7 +1058,7 @@ Tested with:
 └──────────────────┬──────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────┐
-│      Rust Core (tokio-postgres)            │
+│      Rust Core (pgwire-replication)        │
 │                                             │
 │  • Replication connection                  │
 │  • pgoutput binary decoder                 │
@@ -1094,7 +1087,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 Built with:
 - [PyO3](https://github.com/PyO3/pyo3) - Rust ↔ Python bindings
-- [tokio-postgres](https://github.com/sfackler/rust-postgres) - PostgreSQL async client
+- [pgwire-replication](https://crates.io/crates/pgwire-replication) - PostgreSQL replication protocol client
 - [maturin](https://github.com/PyO3/maturin) - Build tool for Rust Python extensions
 - [Debezium](https://debezium.io/) - Inspiration for message format
 
@@ -1106,8 +1099,8 @@ Inspired by and compatible with the [Debezium](https://debezium.io/) CDC ecosyst
 
 - **Documentation**: [Full API Docs](#) *(coming soon)*
 - **Examples**: [examples/](examples/)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/pgoutput-decoder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/pgoutput-decoder/discussions)
+- **Issues**: [GitHub Issues](https://github.com/grove/pgoutput-decoder/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/grove/pgoutput-decoder/discussions)
 
 ### 💝 Support
 
